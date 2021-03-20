@@ -832,6 +832,38 @@ class QubesVM(qubes.vm.mix.net.NetVMMixin, qubes.vm.BaseVM):
                 raise
         return self._libvirt_domain
 
+    def volatile_volume_path(self):
+        '''Find the name of the encrypted volatile volume'''
+        # We need to ensure we don’t collide with any name used by LVM or LUKS,
+        # and that different qubes have different encrypted volume names.
+        # LUKS volumes have a name starting with `luks-` followed by a UUID.
+        # LVM volumes always have at most one dash that is not doubled.
+        # And there is a one-to-one relationship between escaped and original
+        # names: replace `_d` with `-`, then replace `_u` with `_`.
+        # So we are in the clear here.
+        escaped_qube_name = self.name.replace('_', '_u').replace('-', '_d')
+        escaped_vol_name = 'vm-volatile-' + escaped_qube_name + '-crypt-volume'
+        assert escaped_vol_name[12:-13] == escaped_qube_name
+        assert escaped_qube_name.replace('_d', '-').replace('_u', '_') == \
+            self.name
+        return escaped_vol_name
+
+    def make_encrypted_volume(self, device):
+        '''Create encrypted volatile volume'''
+
+        assert device.domain == 'dom0', "Volatile volume must be in dom0"
+        assert device.devtype == 'disk'
+        path = self.volatile_volume_path()
+
+        return qubes.storage.BlockDevice(
+            path=path,
+            name=device.name,
+            script=device.script,
+            rw=device.rw,
+            domain='dom0',
+            devtype='disk',
+        )
+
     @property
     def block_devices(self):
         """ Return all :py:class:`qubes.storage.BlockDevice` for current domain
@@ -840,7 +872,10 @@ class QubesVM(qubes.vm.mix.net.NetVMMixin, qubes.vm.BaseVM):
         for v in self.volumes.values():
             block_dev = v.block_device()
             if block_dev is not None:
-                yield block_dev
+                if v.snap_on_start or v.save_on_stop:
+                    yield block_dev
+                else:
+                    yield self.make_encrypted_volume(block_dev)
 
     @property
     def untrusted_qdb(self):

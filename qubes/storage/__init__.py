@@ -619,17 +619,65 @@ class Storage:
         except (IOError, OSError) as e:
             self.vm.log.exception("Failed to remove some volume", e)
 
+    async def start_volatile_volume(self, v):
+        '''Encrypt a volatile volume'''
+        await qubes.utils.coro_maybe(v.start())
+        block_device = v.block_device()
+        if v.snap_on_start or v.save_on_stop or block_device is None:
+            return block_device
+        await qubes.utils.run_program(
+            'cryptsetup',
+            '--key-file=/dev/urandom',
+            '--cipher=aes-xts-plain64',
+            '--type=plain',
+            '--',
+            'open',
+            block_device.path,
+            self.vm.volatile_volume_path(),
+            executable='/usr/sbin/cryptsetup',
+            # otherwise cryptsetup tries to mlock() the entire locale archive :(
+            env={'LC_ALL':'C'},
+            cwd='/',
+            stdin=subprocess.DEVNULL,
+            check=True,
+        )
+
+    async def stop_volatile_volume(self, v):
+        '''Stop a volatile volume'''
+        block_device = v.block_device()
+        if v.snap_on_start or v.save_on_stop or block_device is None:
+            return await qubes.utils.coro_maybe(v.stop())
+        await qubes.utils.run_program(
+            'cryptsetup',
+            '--',
+            'close',
+            self.vm.volatile_volume_path(),
+            executable='/usr/sbin/cryptsetup',
+            # otherwise cryptsetup tries to mlock() the entire locale archive :(
+            env={'LC_ALL':'C'},
+            cwd='/',
+            stdin=subprocess.DEVNULL,
+            check=True,
+        )
+        await qubes.utils.coro_maybe(v.stop())
+
     @asyncio.coroutine
     def start(self):
         ''' Execute the start method on each volume '''
         yield from qubes.utils.void_coros_maybe(
-            vol.start() for vol in self.vm.volumes.values())
+            (self.start_volatile_volume(vol)
+             if name == 'volatile'
+             else vol.start())
+            for name, vol in self.vm.volumes)
 
     @asyncio.coroutine
     def stop(self):
         ''' Execute the stop method on each volume '''
         yield from qubes.utils.void_coros_maybe(
-            vol.stop() for vol in self.vm.volumes.values())
+            (self.stop_volatile_volume(vol)
+             if name == 'volatile'
+             else vol.stop())
+            for name, vol in self.vm.volumes)
 
     def unused_frontend(self):
         ''' Find an unused device name '''
