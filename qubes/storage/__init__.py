@@ -191,6 +191,12 @@ class Volume:
         This can be implemented as a coroutine.'''
         raise self._not_implemented("remove")
 
+    def ephemeral(self):
+        '''Should this volume be encrypted with an ephemeral key in dom0?
+        '''
+        return not self.snap_on_start and not self.save_on_stop and \
+                self.domain is None
+
     def export(self):
         ''' Returns a path to read the volume data from.
 
@@ -619,12 +625,10 @@ class Storage:
         except (IOError, OSError) as e:
             self.vm.log.exception("Failed to remove some volume", e)
 
-    async def start_volatile_volume(self, v):
-        '''Encrypt a volatile volume'''
+    async def start_encrypted_volume(self, v, name):
+        '''Start a volume encrypted with an ephemeral key
+        '''
         await qubes.utils.coro_maybe(v.start())
-        block_device = v.block_device()
-        if v.snap_on_start or v.save_on_stop or block_device is None:
-            return block_device
         await qubes.utils.run_program(
             'cryptsetup',
             '--key-file=/dev/urandom',
@@ -632,8 +636,8 @@ class Storage:
             '--type=plain',
             '--',
             'open',
-            block_device.path,
-            self.vm.volatile_volume_path(),
+            v.block_device().path,
+            self.vm.volatile_volume_path() + '@' + name,
             executable='/usr/sbin/cryptsetup',
             # otherwise cryptsetup tries to mlock() the entire locale archive :(
             env={'LC_ALL':'C'},
@@ -642,16 +646,13 @@ class Storage:
             check=True,
         )
 
-    async def stop_volatile_volume(self, v):
+    async def stop_encrypted_volume(self, v, name):
         '''Stop a volatile volume'''
-        block_device = v.block_device()
-        if v.snap_on_start or v.save_on_stop or block_device is None:
-            return await qubes.utils.coro_maybe(v.stop())
         await qubes.utils.run_program(
             'cryptsetup',
             '--',
             'close',
-            self.vm.volatile_volume_path(),
+            self.vm.volatile_volume_path() + '@' + name,
             executable='/usr/sbin/cryptsetup',
             # otherwise cryptsetup tries to mlock() the entire locale archive :(
             env={'LC_ALL':'C'},
@@ -665,18 +666,16 @@ class Storage:
     def start(self):
         ''' Execute the start method on each volume '''
         yield from qubes.utils.void_coros_maybe(
-            (self.start_volatile_volume(vol)
-             if name == 'volatile'
-             else vol.start())
+            (self.start_encrypted_volume(vol, name)
+            if vol.ephemeral() else vol.start())
             for name, vol in self.vm.volumes)
 
     @asyncio.coroutine
     def stop(self):
         ''' Execute the stop method on each volume '''
         yield from qubes.utils.void_coros_maybe(
-            (self.stop_volatile_volume(vol)
-             if name == 'volatile'
-             else vol.stop())
+            (self.stop_encrypted_volume(vol)
+             if vol.ephemeral() else vol.stop())
             for name, vol in self.vm.volumes)
 
     def unused_frontend(self):
