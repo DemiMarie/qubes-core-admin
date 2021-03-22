@@ -1574,6 +1574,7 @@ class TC_90_QubesVM(QubesVMTestsMixin, qubes.tests.QubesTestCase):
             'block_device.return_value.devtype': 'disk',
             'block_device.return_value.domain': 'dom0',
             'block_device.return_value.script': '/tmp/script',
+            'ephemeral.return_value': False,
         })
         vm.volumes['other'] = unittest.mock.Mock(**{
             'block_device.return_value.name': 'other',
@@ -1581,6 +1582,7 @@ class TC_90_QubesVM(QubesVMTestsMixin, qubes.tests.QubesTestCase):
             'block_device.return_value.devtype': 'disk',
             'block_device.return_value.domain': 'dom0',
             'block_device.return_value.script': None,
+            'ephemeral.return_value': False,
         })
         vm.volumes['other2'] = unittest.mock.Mock(**{
             'block_device.return_value.name': 'other',
@@ -1588,6 +1590,7 @@ class TC_90_QubesVM(QubesVMTestsMixin, qubes.tests.QubesTestCase):
             'block_device.return_value.devtype': 'disk',
             'block_device.return_value.domain': 'dom0',
             'block_device.return_value.script': None,
+            'ephemeral.return_value': False,
         })
         assignments = [
             unittest.mock.Mock(**{

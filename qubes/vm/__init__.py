@@ -35,7 +35,6 @@ import qubes.devices
 import qubes.events
 import qubes.features
 import qubes.log
-import qubes.storage
 
 VM_ENTRY_POINT = 'qubes.vm'
 

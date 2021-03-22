@@ -158,6 +158,30 @@ class Volume:
         config = _sanitize_config(self.config)
         return lxml.etree.Element('volume', **config)
 
+    async def start_encrypted(self, name):
+        ''' Start a volume encrypted with an ephemeral key.
+            This can be implemented as a coroutine.
+        '''
+        if self.script is not None:
+            self._not_implemented("starting an encrypted volume with a script")
+        await qubes.utils.coro_maybe(self.start())
+        await qubes.utils.cryptsetup(
+            '--key-file=/dev/urandom',
+            '--cipher=aes-xts-plain64',
+            '--type=plain',
+            '--',
+            'open',
+            self.path,
+            name,
+        )
+
+    async def stop_encrypted(self, name):
+        ''' Stop an encrypted, ephemeral volume.
+            This can be implemented as a coroutine.
+        '''
+        await qubes.utils.cryptsetup('--', 'close', name)
+        await qubes.utils.coro_maybe(self.stop())
+
     @staticmethod
     def locked(method):
         '''Decorator running given Volume's coroutine under a lock.
@@ -351,6 +375,40 @@ class Volume:
         # pylint: disable=attribute-defined-outside-init
         self._size = int(size)
 
+    def volatile_volume_path(self, qube_name, device_name):
+        '''Find the name of the encrypted volatile volume'''
+        # We need to ensure we don’t collide with any name used by LVM or LUKS,
+        # and that different qubes have different encrypted volume names.
+        # LUKS volumes have a name starting with `luks-` followed by a UUID.
+        # LVM volumes always have at most one dash that is not doubled.
+        # And there is a one-to-one relationship between escaped and original
+        # names: replace `_d` with `-`, then replace `_u` with `_`.
+        # So we are in the clear here.
+        escaped_qube_name = qube_name.replace('_', '_u').replace('-', '_d')
+        escaped_vol_name = 'vm-volatile-' + escaped_qube_name + '-crypt@' + device_name
+        assert escaped_vol_name[12:-7-len(device_name)] == escaped_qube_name
+        assert escaped_qube_name.replace('_d', '-').replace('_u', '_') == \
+            qube_name
+        return escaped_vol_name
+
+    def make_encrypted_device(self, device, qube_name):
+        ''' Takes :py:class:`BlockDevice` and returns its encrypted version for
+            serialization in the libvirt XML template as <disk>.  The qube name
+            is available to help construct the device path.
+        '''
+        assert device.domain is None, "Volatile volume must be in dom0"
+        assert device.script is None, \
+            "Block device scripts for ephemeral volumes not supported"
+        assert device.devtype == 'disk'
+        path = self.volatile_volume_path(qube_name, device.name)
+        return qubes.storage.BlockDevice(
+            path='/dev/mapper/' + path,
+            name=device.name,
+            script=None,
+            rw=device.rw,
+            domain=None,
+            devtype='disk',
+        )
 
     @property
     def config(self):
@@ -625,48 +683,23 @@ class Storage:
         except (IOError, OSError) as e:
             self.vm.log.exception("Failed to remove some volume", e)
 
-    async def start_encrypted_volume(self, v, name):
-        '''Start a volume encrypted with an ephemeral key
-        '''
-        await qubes.utils.coro_maybe(v.start())
-        await qubes.utils.run_program(
-            'cryptsetup',
-            '--key-file=/dev/urandom',
-            '--cipher=aes-xts-plain64',
-            '--type=plain',
-            '--',
-            'open',
-            v.block_device().path,
-            self.vm.volatile_volume_path() + '@' + name,
-            executable='/usr/sbin/cryptsetup',
-            # otherwise cryptsetup tries to mlock() the entire locale archive :(
-            env={'LC_ALL':'C'},
-            cwd='/',
-            stdin=subprocess.DEVNULL,
-            check=True,
-        )
-
-    async def stop_encrypted_volume(self, v, name):
-        '''Stop a volatile volume'''
-        await qubes.utils.run_program(
-            'cryptsetup',
-            '--',
-            'close',
-            self.vm.volatile_volume_path() + '@' + name,
-            executable='/usr/sbin/cryptsetup',
-            # otherwise cryptsetup tries to mlock() the entire locale archive :(
-            env={'LC_ALL':'C'},
-            cwd='/',
-            stdin=subprocess.DEVNULL,
-            check=True,
-        )
-        await qubes.utils.coro_maybe(v.stop())
+    def block_devices(self):
+        """ Return all :py:class:`qubes.storage.BlockDevice` for current domain
+        for serialization in the libvirt XML template as <disk>.
+        """
+        for v in self.vm.volumes.values():
+            block_dev = v.block_device()
+            if block_dev is not None:
+                if v.ephemeral():
+                    yield v.make_encrypted_device(block_dev, self.vm.name)
+                else:
+                    yield block_dev
 
     @asyncio.coroutine
     def start(self):
         ''' Execute the start method on each volume '''
         yield from qubes.utils.void_coros_maybe(
-            (self.start_encrypted_volume(vol, name)
+            (vol.start_encrypted(vol, vol.volatile_volume_path(self.vm.name, name))
             if vol.ephemeral() else vol.start())
             for name, vol in self.vm.volumes)
 
@@ -674,7 +707,7 @@ class Storage:
     def stop(self):
         ''' Execute the stop method on each volume '''
         yield from qubes.utils.void_coros_maybe(
-            (self.stop_encrypted_volume(vol)
+            (vol.stop_encrypted(vol, vol.volatile_volume_path(self.vm.name, name))
              if vol.ephemeral() else vol.stop())
             for name, vol in self.vm.volumes)
 

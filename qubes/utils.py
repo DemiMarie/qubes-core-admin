@@ -248,6 +248,20 @@ async def run_program(*args, check=False, input=None, **kwargs):
                                                 args[0], *stdouterr)
     return p
 
+def cryptsetup(*args):
+    '''Run cryptsetup with the given arguments.  This method returns a coroutine.
+    '''
+    return run_program(
+        'cryptsetup',
+        *args,
+        executable='/usr/sbin/cryptsetup',
+        # otherwise cryptsetup tries to mlock() the entire locale archive :(
+        env={'LC_ALL':'C'},
+        cwd='/',
+        stdin=subprocess.DEVNULL,
+        check=True,
+    )
+
 @asyncio.coroutine
 def void_coros_maybe(values):
     ''' Ignore elements of the iterable values that are not coroutine
