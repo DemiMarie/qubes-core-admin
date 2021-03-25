@@ -15,6 +15,23 @@ import qubes.log
 import qubes.utils
 import qubes.vm.qubesvm
 
+# Wait for the system entropy pool to fill
+def init_random():
+    """
+    Wait for the system entropy pool to fill, so we can use ``/dev/urandom``
+    with confidence.
+    """
+    import ctypes
+    libc = ctypes.CDLL('libc.so.6', use_errno=True)
+    getentropy = libc['getentropy']
+    getentropy.restype = ctypes.c_int
+    getentropy.argtypes = (ctypes.c_void_p, ctypes.c_size_t)
+    buffer = ctypes.create_string_buffer(1)
+    if getentropy(buffer, 1):
+        err = ctypes.get_errno()
+        raise OSError(err, os.strerror(err))
+init_random()
+
 def sighandler(loop, signame, servers):
     print('caught {}, exiting'.format(signame))
     for server in servers:
