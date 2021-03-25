@@ -32,22 +32,14 @@ get_dev() {
   if [ -f "$dev" ]; then
     file=$dev
 
-    loopdev=$(losetup -j "$file" | head -1 | cut -d : -f 1)
-    if [ -n "$loopdev" ]; then
-      # found existing loop to this file
-      echo "$loopdev"
-      return
-    fi
-
     # assign new loop device
-    loopdev=$(losetup -f 2>/dev/null || find_free_loopback_dev)
-    if [ "$loopdev" = '' ]
+    loopdev=$(losetup --find --nooverlap --show -- "$file" 2>/dev/null)
+    if [ $? -ne 0 ] || [[ ! "$loopdev" =~ ^/dev/loop[0-9]+$ ]]
     then
       release_lock "block"
       fatal 'Failed to find an unused loop device'
     fi
 
-    do_or_die losetup "$loopdev" "$file"
     echo "$loopdev"
   else
     test -e "$dev" || fatal "$dev does not exist."
