@@ -158,9 +158,22 @@ class Volume:
         config = _sanitize_config(self.config)
         return lxml.etree.Element('volume', **config)
 
+    def ephemeral(self):
+        '''Should this volume be encrypted with an ephemeral key in dom0?
+        '''
+        return not self.snap_on_start and not self.save_on_stop and \
+                self.domain is None
+
     async def start_encrypted(self, name):
-        ''' Start a volume encrypted with an ephemeral key.
-            This can be implemented as a coroutine.
+        '''
+        Start a volume encrypted with an ephemeral key.
+        This can be implemented as a coroutine.
+
+        The default implementation of this method uses ``cryptsetup(8)`` with a
+        key taken from ``/dev/urandom``.  This is highly secure and works with
+        any storage pool implementation.  Volume implementations should override
+        this method if they can provide a secure and more efficient
+        implementation.
         '''
         if self.script is not None:
             self._not_implemented("starting an encrypted volume with a script")
@@ -176,8 +189,13 @@ class Volume:
         )
 
     async def stop_encrypted(self, name):
-        ''' Stop an encrypted, ephemeral volume.
-            This can be implemented as a coroutine.
+        '''
+        Stop an encrypted, ephemeral volume.
+        This can be implemented as a coroutine.
+
+        The default implementation of this method uses ``cryptsetup(8)``.
+        Volume implementations that override :py:meth:`start_encrypted` MUST
+        override this method as well.
         '''
         await qubes.utils.cryptsetup('--', 'close', name)
         await qubes.utils.coro_maybe(self.stop())
@@ -214,12 +232,6 @@ class Volume:
 
         This can be implemented as a coroutine.'''
         raise self._not_implemented("remove")
-
-    def ephemeral(self):
-        '''Should this volume be encrypted with an ephemeral key in dom0?
-        '''
-        return not self.snap_on_start and not self.save_on_stop and \
-                self.domain is None
 
     def export(self):
         ''' Returns a path to read the volume data from.
@@ -385,7 +397,8 @@ class Volume:
         # names: replace `_d` with `-`, then replace `_u` with `_`.
         # So we are in the clear here.
         escaped_qube_name = qube_name.replace('_', '_u').replace('-', '_d')
-        escaped_vol_name = 'vm-volatile-' + escaped_qube_name + '-crypt@' + device_name
+        escaped_vol_name = \
+            'vm-volatile-' + escaped_qube_name + '-crypt@' + device_name
         assert escaped_vol_name[12:-7-len(device_name)] == escaped_qube_name
         assert escaped_qube_name.replace('_d', '-').replace('_u', '_') == \
             qube_name
@@ -699,14 +712,16 @@ class Storage:
     def start(self):
         ''' Execute the start method on each volume '''
         yield from qubes.utils.void_coros_maybe(
+            # pylint: disable=line-too-long
             (vol.start_encrypted(vol, vol.volatile_volume_path(self.vm.name, name))
-            if vol.ephemeral() else vol.start())
+             if vol.ephemeral() else vol.start())
             for name, vol in self.vm.volumes)
 
     @asyncio.coroutine
     def stop(self):
         ''' Execute the stop method on each volume '''
         yield from qubes.utils.void_coros_maybe(
+            # pylint: disable=line-too-long
             (vol.stop_encrypted(vol, vol.volatile_volume_path(self.vm.name, name))
              if vol.ephemeral() else vol.stop())
             for name, vol in self.vm.volumes)

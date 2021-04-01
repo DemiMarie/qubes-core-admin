@@ -238,6 +238,7 @@ def coro_maybe(value):
         return (yield from value)
     return value
 
+# pylint: disable=redefined-builtin
 async def run_program(*args, check=False, input=None, **kwargs):
     '''Async version of subprocess.run()
     '''
@@ -249,7 +250,8 @@ async def run_program(*args, check=False, input=None, **kwargs):
     return p
 
 def cryptsetup(*args):
-    '''Run cryptsetup with the given arguments.  This method returns a coroutine.
+    '''
+    Run cryptsetup with the given arguments.  This method returns a coroutine.
     '''
     return run_program(
         'cryptsetup',
