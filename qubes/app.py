@@ -1428,6 +1428,11 @@ class Qubes(qubes.PropertyHolder):
                 self._domain_event_callback,
                 None))
 
+        # Stop storage for domains not currently running
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(qubes.utils.void_coros_maybe(
+            i.storage.stop() for i in self.domains if not i.is_running()))
+
     def _domain_event_callback(self, _conn, domain, event, _detail, _opaque):
         """Generic libvirt event handler (virConnectDomainEventCallback),
         translate libvirt event into qubes.events.
