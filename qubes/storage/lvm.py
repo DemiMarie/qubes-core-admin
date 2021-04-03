@@ -793,6 +793,9 @@ def qubes_lvm_coro(cmd, log=logging.getLogger('qubes.storage.lvm')):
     Coroutine version of :py:func:`qubes_lvm`'''
     environ={'LC_ALL': 'C.UTF-8', **os.environ}
     if cmd[0] == "remove":
+        if not os.path.exists('/dev/' + cmd[1]):
+            # ignore errors if the file does not exist
+            return
         pre_cmd = ['blkdiscard', '-p', '1G', '/dev/'+cmd[1]]
         p = yield from asyncio.create_subprocess_exec(*pre_cmd,
             stdout=subprocess.DEVNULL,
