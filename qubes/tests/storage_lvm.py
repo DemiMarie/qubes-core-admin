@@ -934,6 +934,7 @@ class TC_00_ThinPool(ThinPoolBase):
         self.assertTrue(volume.verify())
         self.assertFalse(volume.save_on_stop)
         self.assertFalse(volume.snap_on_start)
+        self.assertTrue(volume.ephemeral())
         path = volume.path
         self.assertEqual(path, '/dev/' + volume.vid)
         self.assertFalse(os.path.exists(path))

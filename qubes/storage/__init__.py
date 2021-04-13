@@ -413,6 +413,7 @@ class Volume:
         assert device.script is None, \
             "Block device scripts for ephemeral volumes not supported"
         assert device.devtype == 'disk'
+        assert device.rw, 'Encrypting read-only volumes makes no sense'
         path = self.volatile_volume_path(qube_name, device.name)
         return qubes.storage.BlockDevice(
             path='/dev/mapper/' + path,
