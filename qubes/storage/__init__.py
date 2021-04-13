@@ -162,7 +162,7 @@ class Volume:
         '''Should this volume be encrypted with an ephemeral key in dom0?
         '''
         return not self.snap_on_start and not self.save_on_stop and \
-                self.domain is None
+                self.domain is None and self.rw
 
     async def start_encrypted(self, name):
         '''
