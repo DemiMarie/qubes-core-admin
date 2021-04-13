@@ -387,6 +387,7 @@ class Volume:
         # pylint: disable=attribute-defined-outside-init
         self._size = int(size)
 
+    # pylint: disable=no-self-use
     def volatile_volume_path(self, qube_name, device_name):
         '''Find the name of the encrypted volatile volume'''
         # We need to ensure we don’t collide with any name used by LVM or LUKS,
