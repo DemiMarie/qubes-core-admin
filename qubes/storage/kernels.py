@@ -95,6 +95,9 @@ class LinuxModules(Volume):
     def create(self):
         return self
 
+    def ephemeral(self):
+        return False
+
     def remove(self):
         pass
 
