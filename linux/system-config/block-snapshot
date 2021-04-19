@@ -113,6 +113,50 @@ case $t in
   (*) fatal "Bad script name $t";;
 esac
 
+setup_block_dev () {
+  local t p base cow cow2 dm_devname_full
+  t=$1 p=$2
+  base=${p%%:*}
+  cow=${p#*:}
+  cow2=${p##*:}
+  if [ "$cow" != "$cow2" ]; then
+    cow=${cow%:*}
+  else
+    cow2=""
+  fi
+  if [ -L "$base" ]; then
+    base=$(readlink -f "$base") || fatal "$base link does not exist."
+  fi
+
+  if [ -L "$cow" ]; then
+    cow=$(readlink -f "$cow") || fatal "$cow link does not exist."
+  fi
+
+  if [ -L "$cow2" ]; then
+    cow2=$(readlink -f "$cow2") || fatal "$cow2 link does not exist."
+  fi
+
+  # first ensure that snapshot device exists (to write somewhere changes from snapshot-origin)
+  dm_devname=$(get_dm_snapshot_name "$base" "$cow")
+
+  claim_lock "block"
+
+  # prepare snapshot device
+  create_dm_snapshot "$dm_devname" "$base" "$cow"
+
+  if [ -n "$cow2" ]; then
+    [ "$t" = 'snapshot' ] || fatal 'block-origin called with $cow2 set'
+    dm_devname_full=$(get_dm_snapshot_name "$base" "$cow" "$cow2")
+    create_dm_snapshot "$dm_devname_full" "/dev/mapper/$dm_devname" "$cow2"
+    dm_devname="$dm_devname_full"
+  else
+    [ "$t" = 'origin' ] || fatal 'block-snapshot called without $cow2 set'
+    # for origin - prepare snapshot-origin device and store its name
+    dm_devname=origin-$(stat -c '%D:%i' "$base")
+    create_dm_snapshot_origin "$dm_devname" "$base"
+  fi
+}
+
 case "$command" in
   add)
     p=$(xenstore_read_default "$XENBUS_PATH/params" 'MISSING')
@@ -121,46 +165,8 @@ case "$command" in
     fi
     echo "$p" > "$HOTPLUG_STORE-params"
     echo "$t" > "$HOTPLUG_STORE-type"
-    base=${p%%:*}
-    cow=${p#*:}
-    cow2=${p##*:}
-    if [ "$cow" != "$cow2" ]; then
-      cow=${cow%:*}
-    else
-      cow2=""
-    fi
 
-    if [ -L "$base" ]; then
-      base=$(readlink -f "$base") || fatal "$base link does not exist."
-    fi
-
-    if [ -L "$cow" ]; then
-      cow=$(readlink -f "$cow") || fatal "$cow link does not exist."
-    fi
-
-    if [ -L "$cow2" ]; then
-      cow2=$(readlink -f "$cow2") || fatal "$cow2 link does not exist."
-    fi
-
-    # first ensure that snapshot device exists (to write somewhere changes from snapshot-origin)
-    dm_devname=$(get_dm_snapshot_name "$base" "$cow")
-
-    claim_lock "block"
-
-    # prepare snapshot device
-    create_dm_snapshot "$dm_devname" "$base" "$cow"
-
-    if [ -n "$cow2" ]; then
-      dm_devname_full=$(get_dm_snapshot_name "$base" "$cow" "$cow2")
-      create_dm_snapshot "$dm_devname_full" "/dev/mapper/$dm_devname" "$cow2"
-      dm_devname="$dm_devname_full"
-    fi
-
-    if [ "$t" == "origin" ]; then
-      # for origin - prepare snapshot-origin device and store its name
-      dm_devname=origin-$(stat -c '%D:%i' "$base")
-      create_dm_snapshot_origin "$dm_devname" "$base"
-    fi
+    setup_block_dev "$t" "$p"
     xenstore_write "$XENBUS_PATH/node" "/dev/mapper/$dm_devname"
     echo "/dev/mapper/$dm_devname" > "$HOTPLUG_STORE-node"
     write_dev "/dev/mapper/$dm_devname"
@@ -169,36 +175,8 @@ case "$command" in
     exit 0
     ;;
   prepare)
-    t=$2
-    p=$3
-    base=${p%%:*}
-    cow=${p#*:}
-    cow2=${p##*:}
-    if [ "$cow" != "$cow2" ]; then
-      cow=${cow%:*}
-    else
-      cow2=""
-    fi
-
-    # first ensure that snapshot device exists (to write somewhere changes from snapshot-origin)
-    dm_devname=$(get_dm_snapshot_name "$base" "$cow")
-
-    claim_lock "block"
-
-    # prepare snapshot device
-    create_dm_snapshot "$dm_devname" "$base" "$cow"
-
-    if [ -n "$cow2" ]; then
-      dm_devname_full=$(get_dm_snapshot_name "$base" "$cow" "$cow2")
-      create_dm_snapshot "$dm_devname_full" "/dev/mapper/$dm_devname" "$cow2"
-      dm_devname="$dm_devname_full"
-    fi
-
-    if [ "$t" == "origin" ]; then
-      # for origin - prepare snapshot-origin device and store its name
-      dm_devname=origin-$(stat -c '%D:%i' "$base")
-      create_dm_snapshot_origin "$dm_devname" "$base"
-    fi
+    [ "$t" = "$2" ] || fatal 'Wrong block script called'
+    setup_block_dev "$2" "$3"
     echo "/dev/mapper/$dm_devname"
 
     release_lock "block"
