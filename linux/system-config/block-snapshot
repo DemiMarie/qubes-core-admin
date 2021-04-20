@@ -160,6 +160,8 @@ case "$command" in
     exit 0
     ;;
   remove|cleanup)
+    claim_lock "block"
+
     if [ "$command" = "cleanup" ]; then
       node=$3
     else
@@ -171,8 +173,6 @@ case "$command" in
       #Most likely already removed
       exit 0
     fi
-
-    claim_lock "block"
 
     if [ ! -e "$node" ]; then
       fatal "Device $node does not exist"
