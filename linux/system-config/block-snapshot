@@ -114,17 +114,6 @@ setup_block_dev () {
   else
     cow2=""
   fi
-  if [ -L "$base" ]; then
-    base=$(readlink -f "$base") || fatal "$base link does not exist."
-  fi
-
-  if [ -L "$cow" ]; then
-    cow=$(readlink -f "$cow") || fatal "$cow link does not exist."
-  fi
-
-  if [ -L "$cow2" ]; then
-    cow2=$(readlink -f "$cow2") || fatal "$cow2 link does not exist."
-  fi
 
   # first ensure that snapshot device exists (to write somewhere changes from snapshot-origin)
   dm_devname=snapshot$(file_to_devname "$base" "$cow")
