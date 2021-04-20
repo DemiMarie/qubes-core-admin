@@ -143,8 +143,6 @@ case "$command" in
       fatal "Missing device parameters ($t $XENBUS_PATH/params)"
     fi
     echo "$p" > "$HOTPLUG_STORE-params"
-    echo "$t" > "$HOTPLUG_STORE-type"
-
     setup_block_dev "$t" "$p"
     xenstore_write "$XENBUS_PATH/node" "/dev/mapper/$dm_devname"
     echo "/dev/mapper/$dm_devname" > "$HOTPLUG_STORE-node"
@@ -162,11 +160,6 @@ case "$command" in
     exit 0
     ;;
   remove|cleanup)
-    if [ "$command" = "cleanup" ]; then
-      t=$2
-    else
-      t=$(cat "$HOTPLUG_STORE-type" 2>/dev/null || echo 'MISSING')
-    fi
     if [ "$command" = "cleanup" ]; then
       node=$3
     else
