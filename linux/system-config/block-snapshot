@@ -192,7 +192,7 @@ case "$command" in
         ;;
       (/dev/mapper/origin-*)
         # remove unused snapshots
-        for snap in /dev/mapper/snapshot-$(echo "$node"|cut -d- -f2)-*; do
+        for snap in "${node/origin/snapshot}-"*; do
           if is_unused "$snap"; then
             # unused snapshot - remove it
             deps+=" $(deps "$snap")"
