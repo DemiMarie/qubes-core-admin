@@ -143,7 +143,6 @@ case "$command" in
     if [ "$p" == "MISSING" ]; then
       fatal "Missing device parameters ($t $XENBUS_PATH/params)"
     fi
-    echo "$p" > "$HOTPLUG_STORE-params"
     setup_block_dev "$t" "$p"
     xenstore_write "$XENBUS_PATH/node" "/dev/mapper/$dm_devname"
     echo "/dev/mapper/$dm_devname" > "$HOTPLUG_STORE-node"
