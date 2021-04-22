@@ -158,13 +158,12 @@ case "$command" in
 
     if [ "$command" = "cleanup" ]; then
       node=$3
+    elif [ -e "$HOTPLUG_STORE-node" ]; then
+      node=$(cat -- "$HOTPLUG_STORE-node") || fatal 'Cannot remove device'
+      rm -- "$HOTPLUG_STORE-node"
     else
-      node=$(cat "$HOTPLUG_STORE-node" 2> /dev/null)
-    fi
-
-    if [ -z "$node" ]; then
-      #fatal "No device node to remove"
-      #Most likely already removed
+      # Already removed
+      release_lock "block"
       exit 0
     fi
 
@@ -219,10 +218,6 @@ case "$command" in
         esac
       fi
     done
-
-    if [ -n "$HOTPLUG_STORE" ]; then
-      rm "$HOTPLUG_STORE-"*
-    fi
     ;;
 esac
 release_lock "block"
