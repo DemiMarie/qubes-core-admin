@@ -109,6 +109,7 @@ setup_block_dev () {
   base=${p%%:*}
   cow=${p#*:}
   cow2=${p##*:}
+  [ "$cow2" = "${base%.img}-cow.img" ] || fatal 'bad value for $cow2'
   if [ "$cow" != "$cow2" ]; then
     cow=${cow%:*}
   else
