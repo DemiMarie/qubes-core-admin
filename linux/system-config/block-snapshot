@@ -147,17 +147,11 @@ case "$command" in
     xenstore_write "$XENBUS_PATH/node" "/dev/mapper/$dm_devname"
     echo "/dev/mapper/$dm_devname" > "$HOTPLUG_STORE-node"
     write_dev "/dev/mapper/$dm_devname"
-
-    release_lock "block"
-    exit 0
     ;;
   prepare)
     [ "$t" = "$2" ] || fatal 'Wrong block script called'
     setup_block_dev "$2" "$3"
     echo "/dev/mapper/$dm_devname"
-
-    release_lock "block"
-    exit 0
     ;;
   remove|cleanup)
     claim_lock "block"
@@ -229,10 +223,9 @@ case "$command" in
     if [ -n "$HOTPLUG_STORE" ]; then
       rm "$HOTPLUG_STORE-"*
     fi
-    release_lock "block"
-
-    exit 0
     ;;
 esac
+release_lock "block"
+exit 0
 
 # vim:sw=2:et:
