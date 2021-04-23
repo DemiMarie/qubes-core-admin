@@ -129,10 +129,10 @@ class LinuxModules(Volume):
             raise qubes.exc.QubesValueError(
                 'LinuxModules supports only read-only volumes')
 
-    def start(self):
+    async def start(self):
         return self
 
-    def stop(self):
+    async def stop(self):
         pass
 
     def verify(self):

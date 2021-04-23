@@ -238,6 +238,17 @@ def coro_maybe(value):
         return (yield from value)
     return value
 
+# pylint: disable=redefined-builtin
+async def run_program(*args, check=False, input=None, **kwargs):
+    '''Async version of subprocess.run()
+    '''
+    p = await asyncio.create_subprocess_exec(*args, **kwargs)
+    stdouterr = await p.communicate(input=input)
+    if check and p.returncode:
+        raise subprocess.CalledProcessError(p.returncode,
+                                                args[0], *stdouterr)
+    return p
+
 @asyncio.coroutine
 def void_coros_maybe(values):
     ''' Ignore elements of the iterable values that are not coroutine

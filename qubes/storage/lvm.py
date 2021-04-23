@@ -668,33 +668,31 @@ class ThinVolume(qubes.storage.Volume):
         yield from qubes_lvm_coro(cmd, self.log)
 
     @qubes.storage.Volume.locked
-    @asyncio.coroutine
-    def start(self):
+    async def start(self):
         self.abort_if_import_in_progress()
         try:
             if self.snap_on_start or self.save_on_stop:
                 if not self.save_on_stop or not self.is_dirty():
-                    yield from self._snapshot()
+                    await self._snapshot()
             else:
-                yield from self._reset()
+                await self._reset()
         finally:
-            yield from reset_cache_coro()
+            await reset_cache_coro()
         return self
 
     @qubes.storage.Volume.locked
-    @asyncio.coroutine
-    def stop(self):
+    async def stop(self):
         try:
             if self.save_on_stop:
-                yield from self._commit()
+                await self._commit()
             if self.snap_on_start and not self.save_on_stop:
                 cmd = ['remove', self._vid_snap]
-                yield from qubes_lvm_coro(cmd, self.log)
+                await qubes_lvm_coro(cmd, self.log)
             elif not self.snap_on_start and not self.save_on_stop:
                 cmd = ['remove', self.vid]
-                yield from qubes_lvm_coro(cmd, self.log)
+                await qubes_lvm_coro(cmd, self.log)
         finally:
-            yield from reset_cache_coro()
+            await reset_cache_coro()
         return self
 
     def verify(self):

@@ -467,19 +467,17 @@ class CallbackVolume(qubes.storage.Volume):
         yield from self._callback('pre_volume_resize', cb_args=[size])
         return (yield from coro_maybe(self._cb_impl.resize(size)))
 
-    @asyncio.coroutine
-    def start(self):
-        yield from self._assert_initialized()
-        yield from self._callback('pre_volume_start')
-        ret = yield from coro_maybe(self._cb_impl.start())
-        yield from self._callback('post_volume_start')
+    async def start(self):
+        await self._assert_initialized()
+        await self._callback('pre_volume_start')
+        ret = await coro_maybe(self._cb_impl.start())
+        await self._callback('post_volume_start')
         return ret
 
-    @asyncio.coroutine
-    def stop(self):
-        yield from self._assert_initialized()
-        ret = yield from coro_maybe(self._cb_impl.stop())
-        yield from self._callback('post_volume_stop')
+    async def stop(self):
+        await self._assert_initialized()
+        ret = await coro_maybe(self._cb_impl.stop())
+        await self._callback('post_volume_stop')
         return ret
 
     @asyncio.coroutine

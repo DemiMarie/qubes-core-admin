@@ -295,7 +295,7 @@ class Volume:
         # pylint: disable=unused-argument
         raise self._not_implemented("revert")
 
-    def start(self):
+    async def start(self):
         ''' Do what ever is needed on start.
 
         This include making a snapshot of template's volume if
@@ -304,7 +304,7 @@ class Volume:
         This can be implemented as a coroutine.'''
         raise self._not_implemented("start")
 
-    def stop(self):
+    async def stop(self):
         ''' Do what ever is needed on stop.
 
         This include committing data if :py:attr:`save_on_stop` is set.

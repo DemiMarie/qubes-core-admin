@@ -33,6 +33,13 @@ from qubes.config import defaults
 
 # :pylint: disable=invalid-name
 
+import qubes.storage.file
+import os.path
+_dir = os.path.dirname(__file__)
+qubes.storage.file.CREATE_SCRIPT = \
+    os.path.join(_dir, '../../linux/system-config/create-snapshot')
+qubes.storage.file.DESTROY_SCRIPT = \
+    os.path.join(_dir, '../../linux/system-config/destroy-snapshot')
 
 class TestApp(qubes.Qubes):
     ''' A Mock App object '''
