@@ -162,7 +162,6 @@ class TC_01_FileVolumes(qubes.tests.QubesTestCase):
         self.assertEqual(block.path,
             '{base}.img:{base}-cow.img'.format(
                 base=self.POOL_DIR + '/appvms/' + vm.name + '/root'))
-        self.assertEqual(block.script, 'block-origin')
         self.assertEqual(block.rw, True)
         self.assertEqual(block.name, 'root')
         self.assertEqual(block.devtype, 'disk')
@@ -210,7 +209,6 @@ class TC_01_FileVolumes(qubes.tests.QubesTestCase):
                 dst='appvms/' + vm.name + '/root',
         ))
         self.assertEqual(block.name, 'root')
-        self.assertEqual(block.script, 'block-snapshot')
         self.assertEqual(block.rw, False)
         self.assertEqual(block.devtype, 'disk')
 
@@ -235,7 +233,6 @@ class TC_01_FileVolumes(qubes.tests.QubesTestCase):
         self.assertEqual(block.path, '{base}.img:{base}-cow.img'.format(
             base=self.POOL_DIR + '/appvms/' + vm.name + '/root'))
         self.assertEqual(block.rw, True)
-        self.assertEqual(block.script, 'block-origin')
 
     def test_003_read_only_volume(self):
         template = self.app.default_template
