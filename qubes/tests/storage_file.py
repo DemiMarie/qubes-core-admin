@@ -55,6 +55,7 @@ class TestApp(qubes.Qubes):
         open(os.path.join(dummy_kernel, 'modules.img'), 'w').close()
         open(os.path.join(dummy_kernel, 'initramfs'), 'w').close()
         self.default_kernel = 'dummy'
+        self.default_pool = 'varlibqubes'
 
     def cleanup(self):
         ''' Remove temporary directories '''
@@ -85,6 +86,7 @@ class TC_00_FilePool(qubes.tests.QubesTestCase):
         self.app.cleanup()
         self.app.close()
         del self.app
+        shutil.rmtree('/tmp/qubes-test-basedir', ignore_errors=True)
         super(TC_00_FilePool, self).tearDown()
 
     def test000_default_pool_dir(self):
@@ -282,7 +284,8 @@ class TC_01_FileVolumes(qubes.tests.QubesTestCase):
         vm = self.app.add_new_vm(qubes.vm.appvm.AppVM, name=vmname,
                                  template=self.app.default_template,
                                  label='red')
-        self.loop.run_until_complete(self.app.default_template.create_on_disk())
+        for vol in self.app.default_template.volumes.values():
+            vol.create()
 
         template_dir = os.path.join(self.POOL_DIR, 'vm-templates',
             vm.template.name)
