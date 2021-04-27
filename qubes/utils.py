@@ -238,10 +238,14 @@ def coro_maybe(value):
         return (yield from value)
     return value
 
+_am_root = os.getuid() == 0
+
 # pylint: disable=redefined-builtin
-async def run_program(*args, check=True, input=None, **kwargs):
+async def run_program(*args, check=True, input=None, sudo=False, **kwargs):
     '''Async version of subprocess.run()
     '''
+    if not _am_root and sudo:
+        args = ['sudo'] + list(args)
     p = await asyncio.create_subprocess_exec(*args, **kwargs)
     stdouterr = await p.communicate(input=input)
     if check and p.returncode:

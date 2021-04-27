@@ -385,11 +385,11 @@ class FileVolume(qubes.storage.Volume):
         async with _lock:
             if self.save_on_stop:
                 assert not self.snap_on_start, 'unsupported configuration'
-                await qubes.utils.run_program('sudo', CREATE_SCRIPT, self.path,
-                        self.path_cow, check=True)
+                await qubes.utils.run_program(CREATE_SCRIPT, self.path,
+                        self.path_cow, sudo=True)
             elif self.snap_on_start:
-                await qubes.utils.run_program('sudo', CREATE_SCRIPT, self.path,
-                        self.path_source_cow, self.path_cow, check=True)
+                await qubes.utils.run_program(CREATE_SCRIPT, self.path,
+                        self.path_source_cow, self.path_cow, sudo=True)
         return self
 
     async def stop(self):
@@ -399,8 +399,8 @@ class FileVolume(qubes.storage.Volume):
             async with _lock:
                 path = self._block_device_path()
                 if os.path.exists(path):
-                    await qubes.utils.run_program('sudo', DESTROY_SCRIPT,
-                            path, check=True)
+                    await qubes.utils.run_program(DESTROY_SCRIPT,
+                            path, sudo=True)
         if self.save_on_stop:
             assert not self.snap_on_start
             if self.rw:
