@@ -369,6 +369,8 @@ class FileVolume(qubes.storage.Volume):
         self._export_lock = FileVolume._marker_running
         if not self.save_on_stop and not self.snap_on_start:
             self.reset()
+            # so that we do not trip an assertion below
+            return self
         else:
             if not self.save_on_stop:
                 # make sure previous snapshot is removed - even if VM
@@ -382,13 +384,19 @@ class FileVolume(qubes.storage.Volume):
                 if not os.path.exists(self.path_source_cow):
                     create_sparse_file(self.path_source_cow, self.size)
 
+        path = self._block_device_path()
+        assert path.startswith('/dev/mapper/'), 'bad path %r' % path
+        assert path == '/dev/mapper/' + path[12:]
+        path = path[12:]
         async with _lock:
             if self.save_on_stop:
                 assert not self.snap_on_start, 'unsupported configuration'
-                await qubes.utils.run_program(CREATE_SCRIPT, self.path,
+                await qubes.utils.run_program(CREATE_SCRIPT, path, self.path,
                         self.path_cow, sudo=True)
             elif self.snap_on_start:
-                await qubes.utils.run_program(CREATE_SCRIPT, self.path,
+                assert self.path.endswith('.img')
+                assert self.path_source_cow == self.path[:-4] + '-cow.img'
+                await qubes.utils.run_program(CREATE_SCRIPT, path, self.path,
                         self.path_source_cow, self.path_cow, sudo=True)
         return self
 

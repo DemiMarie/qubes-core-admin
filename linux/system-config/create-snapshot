@@ -44,16 +44,14 @@ file_to_devname () {
 }
 
 create_dm_snapshot() {
-  local base_dev cow_dev base_sz base cow dm_devname
+  local base_dev cow_dev base_sz dm_devname
 
   dm_devname=$1
-  base=$2
-  cow=$3
+  base_dev=$2
+  cow_dev=$3
 
   if [ ! -e "/dev/mapper/$dm_devname" ]; then
     # prepare new snapshot device
-    base_dev=$(get_dev "$base") || fatal "could not get loop device for $base"
-    cow_dev=$(get_dev "$cow") || fatal "could not get loop device for $cow"
     base_sz=$(blockdev --getsz "$base_dev")
     3< "$base_dev" 4< "$cow_dev" dmsetup create "$dm_devname" \
       --table "0 $base_sz snapshot /dev/fd/3 /dev/fd/4 P $SNAPSHOT_CHUNKSIZE" ||
@@ -61,47 +59,34 @@ create_dm_snapshot() {
   fi
 }
 
-create_dm_snapshot_origin() {
-  local base_dev base_sz dm_devname base
+setup_block_dev () {
+  local base cow cow2 dm_devname_full final dm_devname
+  final=$1 base=$2 cow=$3
 
-  dm_devname=$1
-  base=$2
+  # first ensure that snapshot device exists (to write somewhere changes from snapshot-origin)
+  dm_devname=snapshot$(file_to_devname "$base" "$cow")
+  base=$(get_dev "$base")
+  cow=$(get_dev "$cow")
 
-  if [ ! -e "/dev/mapper/$dm_devname" ]; then
-    # prepare new snapshot-origin device
-    base_dev=$(get_dev "$base")
-    base_sz=$(blockdev --getsz "$base_dev")
-    3< "$base_dev" dmsetup create "$dm_devname" \
+  # prepare snapshot device
+  create_dm_snapshot "$dm_devname" "$base" "$cow"
+
+  if [ -n "${4+a}" ]; then
+    cow2=$(get_dev "$4")
+    create_dm_snapshot "$final" "/dev/mapper/$dm_devname" "$cow2"
+  elif ! [ -b "/dev/mapper/$final" ]; then
+    # for origin - prepare snapshot-origin device and store its name
+    base_sz=$(blockdev --getsz "$base")
+    3< "$base" dmsetup create "$final" \
       --table "0 $base_sz snapshot-origin /dev/fd/3" ||
       fatal 'cound not create origin'
   fi
 }
 
-setup_block_dev () {
-  local p base cow cow2 dm_devname_full
-  base=$1 cow=$2 cow2=${3-}
-
-  # first ensure that snapshot device exists (to write somewhere changes from snapshot-origin)
-  dm_devname=snapshot$(file_to_devname "$base" "$cow")
-
-  # prepare snapshot device
-  create_dm_snapshot "$dm_devname" "$base" "$cow"
-
-  if [ -n "${3+a}" ]; then
-    dm_devname_full=$dm_devname$(file_to_devname "$cow2")
-    create_dm_snapshot "$dm_devname_full" "/dev/mapper/$dm_devname" "$cow2"
-    dm_devname="$dm_devname_full"
-  else
-    # for origin - prepare snapshot-origin device and store its name
-    dm_devname=origin$(file_to_devname "$base")
-    create_dm_snapshot_origin "$dm_devname" "$base"
-  fi
-}
-
-if [[ "$#" -eq 2 ]] || [[ "$#" -eq 3 ]]; then
+if [[ "$#" -eq 3 ]] || [[ "$#" -eq 4 ]]; then
   setup_block_dev "$@"
 else
-  fatal "Wrong number of arguments (expected 2 or 3): $#"
+  fatal "Wrong number of arguments (expected 3 or 4): $#"
 fi
 
 # vim:sw=2:et:
