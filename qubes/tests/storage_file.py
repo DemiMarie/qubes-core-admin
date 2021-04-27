@@ -215,6 +215,8 @@ class TC_01_FileVolumes(qubes.tests.QubesTestCase):
         self.assertEqual(block.name, 'root')
         self.assertEqual(block.rw, False)
         self.assertEqual(block.devtype, 'disk')
+        self.loop.run_until_complete(qubes.utils.coro_maybe(volume.remove()))
+        self.loop.run_until_complete(qubes.utils.coro_maybe(source.remove()))
 
     def test_002_read_write_volume(self):
         config = {
@@ -487,6 +489,7 @@ class TC_01_FileVolumes(qubes.tests.QubesTestCase):
         self.assertEqual(self._get_loop_size(volume.path), new_size)
         self.assertEqual(volume.size, new_size)
         self.loop.run_until_complete(qubes.utils.coro_maybe(volume.stop()))
+        self.loop.run_until_complete(qubes.utils.coro_maybe(volume.stop()))
         self.assertEqual(os.path.getsize(volume.path), new_size)
         self.assertEqual(volume.size, new_size)
 
@@ -497,6 +500,7 @@ class TC_01_FileVolumes(qubes.tests.QubesTestCase):
         self.loop.run_until_complete(qubes.utils.coro_maybe(volumes[dev_name].start()))
         b_dev = volumes[dev_name].block_device()
         self.assertEqual(b_dev.rw, rw)
+        self.loop.run_until_complete(qubes.utils.coro_maybe(volumes[dev_name].stop()))
 
 
 class TC_03_FilePool(qubes.tests.QubesTestCase):

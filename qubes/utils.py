@@ -239,7 +239,7 @@ def coro_maybe(value):
     return value
 
 # pylint: disable=redefined-builtin
-async def run_program(*args, check=False, input=None, **kwargs):
+async def run_program(*args, check=True, input=None, **kwargs):
     '''Async version of subprocess.run()
     '''
     p = await asyncio.create_subprocess_exec(*args, **kwargs)

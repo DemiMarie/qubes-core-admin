@@ -2,9 +2,14 @@
 
 set -euo pipefail
 shopt -s nullglob
+unset is_origin origin snapshot deps node
 
 is_unused () {
   dmsetup -- info "$1" 2>/dev/null|grep -Eq '^Open count: +0$'
+}
+
+deps () {
+  dmsetup -o blkdevname -- deps "$1" | cut -d: -f2 | sed -e 's#(\([a-z0-9-]\+\))#/dev/\1#g'
 }
 
 fatal () {
@@ -12,13 +17,16 @@ fatal () {
   exit 1
 }
 
-if [ ! -e "$node" ]; then
-  fatal "Device $node does not exist"
-elif ! is_unused "$node"; then
+if [[ "$#" -ne 1 ]]; then
+  fatal "Expected one argument (name of device to remove), got $#"
+elif [[ ! -b "$1" ]]; then
+  fatal "Device $1 does not exist"
+elif ! is_unused "$1"; then
+  echo "Cannot remove device $1 that is still in use!" >&2
   exit 0
 fi
 
-unset is_origin origin snapshot deps
+node=$1
 
 # get list of used (loop) devices
 deps=$(deps "$node")

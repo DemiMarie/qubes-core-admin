@@ -45,7 +45,7 @@ EMPTY_SNAPSHOT = b'SnAp\x01\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00' \
 def _dev_path(file):
     res = os.stat(file)
     assert stat.S_ISREG(res.st_mode), 'not a regular file?'
-    return hex(res.st_dev) + ':' + hex(res.st_ino)
+    return '%x:%d' % (res.st_dev, res.st_ino)
 
 _lock = asyncio.Lock()
 
@@ -235,7 +235,8 @@ class FileVolume(qubes.storage.Volume):
         if not self.snap_on_start:
             create_sparse_file(self.path, self.size, permissions=0o664)
 
-    def remove(self):
+    async def remove(self):
+        await self.stop()
         if not self.snap_on_start:
             _remove_if_exists(self.path)
         if self.snap_on_start or self.save_on_stop:
@@ -384,11 +385,11 @@ class FileVolume(qubes.storage.Volume):
         async with _lock:
             if self.save_on_stop:
                 assert not self.snap_on_start, 'unsupported configuration'
-                await qubes.utils.run_program(CREATE_SCRIPT, self.path,
-                        self.path_cow)
+                await qubes.utils.run_program('sudo', CREATE_SCRIPT, self.path,
+                        self.path_cow, check=True)
             elif self.snap_on_start:
-                await qubes.utils.run_program(CREATE_SCRIPT, self.path,
-                        self.path_source_cow, self.path_cow)
+                await qubes.utils.run_program('sudo', CREATE_SCRIPT, self.path,
+                        self.path_source_cow, self.path_cow, check=True)
         return self
 
     async def stop(self):
@@ -396,11 +397,14 @@ class FileVolume(qubes.storage.Volume):
             'trying to stop exported file volume?'
         if self.save_on_stop or self.snap_on_start:
             async with _lock:
-                await qubes.utils.run_program(DESTROY_SCRIPT,
-                        self._block_device_path())
+                path = self._block_device_path()
+                if os.path.exists(path):
+                    await qubes.utils.run_program('sudo', DESTROY_SCRIPT,
+                            path, check=True)
         if self.save_on_stop:
             assert not self.snap_on_start
-            self.commit()
+            if self.rw:
+                self.commit()
         elif self.snap_on_start:
             _remove_if_exists(self.path_cow)
         else:
@@ -441,12 +445,17 @@ class FileVolume(qubes.storage.Volume):
         if not self.snap_on_start:
             if not self.save_on_stop:
                 return self.path
-            return '/dev/mapper/' + _dev_path(self.path) + '-' + \
-                        _dev_path(self.path_cow)
+            return '-'.join([
+                '/dev/mapper/origin',
+                _dev_path(self.path),
+            ])
         assert not self.save_on_stop, 'unsuppported configuration'
-        return '/dev/mapper/' + _dev_path(self.path) + '-' + \
-                _dev_path(self.path_source_cow) + '-' + \
-                _dev_path(self.path_cow)
+        return '-'.join([
+            '/dev/mapper/snapshot',
+            _dev_path(self.path),
+            _dev_path(self.path_source_cow),
+            _dev_path(self.path_cow),
+        ])
 
     def block_device(self):
         ''' Return :py:class:`qubes.storage.BlockDevice` for serialization in

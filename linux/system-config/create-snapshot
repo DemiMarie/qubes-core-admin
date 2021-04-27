@@ -52,17 +52,13 @@ create_dm_snapshot() {
 
   if [ ! -e "/dev/mapper/$dm_devname" ]; then
     # prepare new snapshot device
-    base_dev=$(get_dev "$base")
-    cow_dev=$(get_dev "$cow")
+    base_dev=$(get_dev "$base") || fatal "could not get loop device for $base"
+    cow_dev=$(get_dev "$cow") || fatal "could not get loop device for $cow"
     base_sz=$(blockdev --getsz "$base_dev")
     3< "$base_dev" 4< "$cow_dev" dmsetup create "$dm_devname" \
       --table "0 $base_sz snapshot /dev/fd/3 /dev/fd/4 P $SNAPSHOT_CHUNKSIZE" ||
       fatal 'could not create snapshot'
   fi
-}
-
-deps () {
-  dmsetup -o blkdevname -- deps "$1" | cut -d: -f2 | sed -e 's#(\([a-z0-9-]\+\))#/dev/\1#g'
 }
 
 create_dm_snapshot_origin() {
