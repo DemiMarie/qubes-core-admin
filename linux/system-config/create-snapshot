@@ -31,11 +31,11 @@ get_dev() {
       fatal 'Failed to find an unused loop device'
     fi
 
-    echo "$loopdev"
+    printf %s\\n "$loopdev"
   else
     test -e "$dev" || fatal "$dev does not exist."
     test -b "$dev" || fatal "$dev is not a block device nor file."
-    echo "$dev"
+    printf %s\\n "$dev"
   fi
 }
 
