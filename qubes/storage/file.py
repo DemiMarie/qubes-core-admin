@@ -371,22 +371,20 @@ class FileVolume(qubes.storage.Volume):
             self.reset()
             # so that we do not trip an assertion below
             return self
-        else:
-            if not self.save_on_stop:
-                # make sure previous snapshot is removed - even if VM
-                # shutdown routine wasn't called (power interrupt or so)
-                _remove_if_exists(self.path_cow)
-            if not os.path.exists(self.path_cow):
-                create_sparse_file(self.path_cow, self.size)
-            if not self.snap_on_start:
-                _check_path(self.path)
-            if hasattr(self, 'path_source_cow'):
-                if not os.path.exists(self.path_source_cow):
-                    create_sparse_file(self.path_source_cow, self.size)
+        if not self.save_on_stop:
+            # make sure previous snapshot is removed - even if VM
+            # shutdown routine wasn't called (power interrupt or so)
+            _remove_if_exists(self.path_cow)
+        if not os.path.exists(self.path_cow):
+            create_sparse_file(self.path_cow, self.size)
+        if not self.snap_on_start:
+            _check_path(self.path)
+        if hasattr(self, 'path_source_cow'):
+            if not os.path.exists(self.path_source_cow):
+                create_sparse_file(self.path_source_cow, self.size)
 
         path = self._block_device_path()
         assert path.startswith('/dev/mapper/'), 'bad path %r' % path
-        assert path == '/dev/mapper/' + path[12:]
         path = path[12:]
         async with _lock:
             if self.save_on_stop:
