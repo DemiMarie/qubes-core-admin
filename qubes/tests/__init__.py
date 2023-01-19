@@ -415,9 +415,10 @@ class QubesTestCase(unittest.TestCase):
     def __init__(self, methodName='runTest'):
         try:
             test_method = getattr(self, methodName)
-            setattr(self, methodName, _clear_ex_info()(test_method))
         except AttributeError:
             pass
+        else:
+            setattr(self, methodName, _clear_ex_info()(test_method))
         super(QubesTestCase, self).__init__(methodName)
         self.longMessage = True
         self.log = logging.getLogger('{}.{}.{}'.format(
