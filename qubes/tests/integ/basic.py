@@ -105,14 +105,41 @@ class TC_00_Basic(qubes.tests.SystemTestCase):
         # check if VM do not crash instantly
         self.loop.run_until_complete(asyncio.sleep(5))
         self.assertTrue(self.vm.is_running())
-        # Type 'poweroff'
+        # Type 'halt'
         subprocess.check_call(['xdotool', 'search', '--name', self.vm.name,
-                               'type', '--window', '%1', 'poweroff\r'])
+                               'type', '--window', '%1', 'halt\r'])
         for _ in range(10):
             if not self.vm.is_running():
                 break
             self.loop.run_until_complete(asyncio.sleep(1))
         self.assertFalse(self.vm.is_running())
+
+    def test_121_start_uefi(self):
+        vmname = self.make_vm_name('appvm')
+        self.vm = self.app.add_new_vm('StandaloneVM', label='red', name=vmname)
+        self.loop.run_until_complete(self.vm.create_on_disk())
+        self.vm.kernel = None
+        self.vm.virt_mode = 'hvm'
+        subprocess.check_call(['qvm-features', '--', vmname, 'uefi', '1'])
+        iso_path = self.create_bootable_iso()
+        # start the VM using qvm-start tool, to test --cdrom option there
+        p = self.loop.run_until_complete(asyncio.create_subprocess_exec(
+            'qvm-start', '--cdrom=dom0:' + iso_path, self.vm.name,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT))
+        (stdout, _) = self.loop.run_until_complete(p.communicate())
+        self.assertEqual(p.returncode, 0, stdout)
+        # check if VM do not crash instantly
+        self.loop.run_until_complete(asyncio.sleep(5))
+        self.assertTrue(self.vm.is_running())
+        # Type 'halt'
+        subprocess.check_call(['xdotool', 'search', '--name', self.vm.name,
+                               'type', '--window', '%1', 'halt\r'])
+        for _ in range(10):
+            if not self.vm.is_running():
+                break
+            self.loop.run_until_complete(asyncio.sleep(1))
+        self.assertFalse(self.vm.is_running())
+
 
     def test_130_autostart_disable_on_remove(self):
         vm = self.app.add_new_vm(qubes.vm.appvm.AppVM,
@@ -669,9 +696,9 @@ class TC_06_AppVMMixin(object):
         # check if VM do not crash instantly
         self.loop.run_until_complete(asyncio.sleep(5))
         self.assertTrue(self.vm.is_running())
-        # Type 'poweroff'
+        # Type 'halt'
         subprocess.check_call(['xdotool', 'search', '--name', self.vm.name,
-                               'type', '--window', '%1', 'poweroff\r'])
+                               'type', '--window', '%1', 'halt\r'])
         for _ in range(10):
             if not self.vm.is_running():
                 break
