@@ -88,6 +88,8 @@ Requires:       qubes-core-qrexec-dom0 >= 4.3.0
 Requires:       qubes-db-dom0
 # TODO: R: qubes-gui-dom0 >= 2.1.11
 Conflicts:      qubes-gui-dom0 < 1.1.13
+# Older versions are missing qvm-{block,pci,usb} symlinks
+Conflicts:      qubes-core-admin-client < 4.3.10
 %if "x%{?backend_vmm}" == "xxen"
 Requires:       xen-runtime
 Requires:       xen-hvm
