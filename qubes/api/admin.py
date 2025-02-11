@@ -309,7 +309,11 @@ class QubesAdminAPI(qubes.api.AbstractQubesAPI):
 
         self.fire_event_for_permission(newvalue=newvalue)
 
-        setattr(dest, self.arg, newvalue)
+        if self.arg == "template" and not dest.is_halted():
+            # do not fire events
+            setattr(dest, "pending_template", newvalue)
+        else:
+            setattr(dest, self.arg, newvalue)
         self.app.save()
 
     @qubes.api.method(

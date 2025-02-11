@@ -45,6 +45,13 @@ class AppVM(
 ):
     """Application VM"""
 
+    pending_template = qubes.VMProperty(
+        "pending_template",
+        load_stage=4,
+        vmclass=qubes.vm.templatevm.TemplateVM,
+        doc="Template on which this AppVM will based once the AppVM reboots.",
+    )
+
     template = qubes.VMProperty(
         "template",
         load_stage=4,
@@ -135,6 +142,29 @@ class AppVM(
                 f"({default_template.name}) instead"
             )
         raise qubes.exc.QubesValueError("Cannot unset template")
+
+    @qubes.events.handler("property-pre-set:pending_template")
+    def on_property_pre_set_pending_template(
+        self, event, name, newvalue, oldvalue=None
+    ):
+        """Forbid changing pending_template"""  # pylint: disable=unused-argument
+        raise qubes.exc.QubesException(
+            "Cannot change pending_template property"
+        )
+
+    def __check_pending_template(self):
+        if self.is_halted() and not self.property_is_default("pending_template"):
+            self.template = self.pending_template
+            del self.pending_template
+
+    @qubes.events.handler("property-load")
+    def on_property_load(self, event):
+        """Check for updated templates""" # pylint: disable=unused-argument
+        self.__check_pending_template()
+
+    @qubes.events.handler("domain-stopped")
+    def on_domain_stopped(self, event):
+        self.__check_pending_template()
 
     @qubes.events.handler("property-pre-set:template")
     def on_property_pre_set_template(
